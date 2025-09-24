@@ -1,0 +1,18 @@
+import numpy as np
+
+n=100
+
+#starting a collocated grid(right now i just want visuals to work)
+
+Ex_field = np.zeros((n,n,n))
+Ey_field = np.zeros((n,n,n))
+Ez_field = np.zeros((n,n,n))
+
+Hx_field = np.zeros((n,n,n))
+Hy_field = np.zeros((n,n,n))
+Hz_field = np.zeros((n,n,n))
+
+
+
+
+def init():
