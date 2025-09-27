@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 n=100
 
@@ -14,5 +16,5 @@ Hz_field = np.zeros((n,n,n))
 
 
 
-
-def init():
+efe
+def i
