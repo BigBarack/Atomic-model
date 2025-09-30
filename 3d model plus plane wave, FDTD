@@ -1,20 +1,137 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib.animation import ArtistAnimation
+from matplotlib.animation import FuncAnimation
 
 n=100
-
+eps0 = 8.85 * 10**-12 # F/m
+mu0 = 4*np.pi*10**-7  #N/A**2??
 #starting a collocated grid(right now i just want visuals to work)
+c = 299792358 # m/s
+Ex_field = np.zeros((n,n+1,n+1))
+Ey_field = np.zeros((n+1,n,n+1))
+Ez_field = np.zeros((n+1,n+1,n))
 
-Ex_field = np.zeros((n,n,n))
-Ey_field = np.zeros((n,n,n))
-Ez_field = np.zeros((n,n,n))
+Hx_field = np.zeros((n,n+1,n+1))
+Hy_field = np.zeros((n+1,n,n+1))
+Hz_field = np.zeros((n+1,n+1,n))
 
-Hx_field = np.zeros((n,n,n))
-Hy_field = np.zeros((n,n,n))
-Hz_field = np.zeros((n,n,n))
+XEmesh = np.ones((n,n+1,n+1))
+YEmesh = np.ones((n+1,n,n+1))
+ZEmesh = np.ones((n+1,n+1,n))
+
+XHmesh = np.ones((n,n+1,n+1))
+YHmesh = np.ones((n+1,n,n+1))
+ZHmesh = np.ones((n+1,n+1,n))
+
+
+dt= float(1/(c*np.sqrt(1/np.min(XEmesh)**2+1/np.min(YEmesh)**2+1/np.min(ZEmesh)**2)))
+source = np.zeros((n+1,n,n+1))
+source[n//2,n//2,n//2] = 20
+Ey_field = source
+
+def FDTD_update():
+    """
+    these are the general update equations
+    I need to make sure that. the meshes are well defined
+    for uniform it doesnt matter
+
+    WHEN NOT UNIFORM MAKE SURE THE DISTANCES FUCKING ALIGN 
+
+    TAKE NOTE I ONLY MADE MESHES FOR THIS FUCKING E THING NOT FOR H SO WHEN NON UNIFORM 
+    """ 
+    cex= dt/(mu0*XEmesh)
+    cey= dt/(mu0*YEmesh)
+    cez= dt/(mu0*ZEmesh)
+    chx= dt/(eps0*XEmesh)
+    chy= dt/(eps0*YEmesh)
+    chz= dt/(eps0*ZEmesh)
+
+    #First update the magnetic field 
+    Hz_field[:-1,:-1,:]+= (
+                            +( cex[:,:-1,:] * (Ey_field[1:,:,:]-Ey_field[:-1,:,:]))[:,:,:-1]
+                            -( cey[:-1,:,:] * (Ex_field[:,1:,:]-Ex_field[:,:-1,:]))[:,:,:-1]
+                          )
+    Hy_field[:-1,:,:-1]+= (
+                            +( cez[:-1,:,:] * (Ex_field[:,:,1:]-Ex_field[:,:,:-1]))[:,:-1,:]
+                            -( cex[:,:,:-1] * (Ez_field[1:,:,:]-Ez_field[:-1,:,:]))[:,:-1,:]
+                          )
+    Hx_field[:,:-1,:-1]+= (
+                            +( cey[:,:,:-1] * (Ez_field[:,1:,:]-Ez_field[:,:-1,:]))[:-1,:,:]
+                            -( cez[:,:-1,:] * (Ey_field[:,:,1:]-Ey_field[:,:,:-1]))[:-1,:,:]
+                          )
+    #Update the electric field
+
+    Ez_field[:-1,:-1,:]+= (
+                            +( chx[:,:-1,:] * (Hy_field[1:,:,:]-Hy_field[:-1,:,:]))[:,:,:-1]
+                            -( chy[:-1,:,:] * (Hx_field[:,1:,:]-Hx_field[:,:-1,:]))[:,:,:-1]
+                          )
+    Ey_field[:-1,:,:-1]+= (
+                            +( chz[:-1,:,:] * (Hx_field[:,:,1:]-Hx_field[:,:,:-1]))[:,:-1,:]
+                            -( chx[:,:,:-1] * (Hz_field[1:,:,:]-Hz_field[:-1,:,:]))[:,:-1,:]
+                          )
+    Ex_field[:,:-1,:-1]+= (
+                            +( chy[:,:,:-1] * (Ez_field[:,1:,:]-Ez_field[:,:-1,:]))[:-1,:,:]
+                            -( chz[:,:-1,:] * (Ey_field[:,:,1:]-Ey_field[:,:,:-1]))[:-1,:,:]
+                          )
+    
 
 
 
-efe
-def i
+def animate(time=0.0001, visu=True):
+    Nt = int(time / dt)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_box_aspect([1, 1, 1])
+    ax.view_init(elev=30, azim=45)
+
+    nx, ny, nz = Ey_field.shape
+    x = np.linspace(0, 1, nx)
+    y = np.linspace(0, 1, ny)
+    z = np.linspace(0, 1, nz)
+    X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+
+    def update(frame):
+        
+        ax.clear()
+        ax.set_title(f"Ey_field at t={frame * dt:.2e}")
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_zlim(0, 1)
+        ax.view_init(elev=30, azim=45)
+
+        FDTD_update()
+
+        norm_field = (Ey_field - Ey_field.min()) / (Ey_field.max() - Ey_field.min() + 1e-9)
+        alpha_field = np.clip(norm_field, 0, 1)
+        threshold = 0.05
+        mask = alpha_field > threshold
+
+        x_vals = X[mask]
+        y_vals = Y[mask]
+        z_vals = Z[mask]
+        colors = plt.cm.viridis(norm_field[mask])
+        colors[:, -1] = alpha_field[mask]
+
+        ax.scatter(x_vals, y_vals, z_vals, c=colors, marker='o', s=10)
+        return []
+
+    anim = FuncAnimation(fig, update, frames=Nt, interval=50, blit=False)
+    anim.save("Ey_field_animation.gif", writer="pillow")
+
+
+
+        
+animate()
+
+
+
+
+
+
+
+
+
+
